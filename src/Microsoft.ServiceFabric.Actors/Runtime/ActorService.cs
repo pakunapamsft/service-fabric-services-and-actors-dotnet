@@ -417,26 +417,27 @@ namespace Microsoft.ServiceFabric.Actors.Runtime
         {
             if (this.migrationOrchestrator != null)
             {
-                if (this.migrationOrchestrator.IsAutoStartMigration())
+                try
                 {
-                    try
+                    bool isResumed = await this.migrationOrchestrator.TryResumeMigrationAsync(cancellationToken);
+                    if (!isResumed && this.migrationOrchestrator.IsAutoStartMigration())
                     {
                         await this.migrationOrchestrator.StartMigrationAsync(cancellationToken);
                         return;
                     }
-                    catch (Exception ex)
+                }
+                catch (Exception ex)
+                {
+                    var healthInfo = new HealthInformation("ActorService", "ActorStateMigration", HealthState.Error)
                     {
-                        var healthInfo = new HealthInformation("ActorService", "ActorStateMigration", HealthState.Error)
-                        {
-                            TimeToLive = TimeSpan.MaxValue,
-                            RemoveWhenExpired = false,
-                            Description = ex.Message,
-                        };
+                        TimeToLive = TimeSpan.MaxValue,
+                        RemoveWhenExpired = false,
+                        Description = ex.Message,
+                    };
 
-                        this.Partition.ReportPartitionHealth(healthInfo, new HealthReportSendOptions { Immediate = true });
+                    this.Partition.ReportPartitionHealth(healthInfo, new HealthReportSendOptions { Immediate = true });
 
-                        throw ex;
-                    }
+                    throw ex;
                 }
             }
 
