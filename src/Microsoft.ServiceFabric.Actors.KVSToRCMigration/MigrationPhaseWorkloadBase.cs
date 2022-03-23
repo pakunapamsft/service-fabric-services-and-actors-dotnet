@@ -10,13 +10,14 @@ namespace Microsoft.ServiceFabric.Actors.KVSToRCMigration
     using System.Fabric;
     using System.Threading;
     using System.Threading.Tasks;
+    using Microsoft.ServiceFabric.Actors.Migration;
     using Microsoft.ServiceFabric.Actors.Runtime;
     using Microsoft.ServiceFabric.Data.Collections;
     using Microsoft.ServiceFabric.Services.Communication.Client;
     using static Microsoft.ServiceFabric.Actors.KVSToRCMigration.MigrationConstants;
     using static Microsoft.ServiceFabric.Actors.KVSToRCMigration.MigrationUtility;
     using static Microsoft.ServiceFabric.Actors.KVSToRCMigration.PhaseInput;
-    using static Microsoft.ServiceFabric.Actors.KVSToRCMigration.PhaseResult;
+    using static Microsoft.ServiceFabric.Actors.Migration.PhaseResult;
 
     internal abstract class MigrationPhaseWorkloadBase : IMigrationPhaseWorkload
     {

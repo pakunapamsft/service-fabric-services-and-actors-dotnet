@@ -12,6 +12,7 @@ namespace Microsoft.ServiceFabric.Actors.KVSToRCMigration
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.ServiceFabric.Actors.Generator;
+    using Microsoft.ServiceFabric.Actors.Migration;
     using Microsoft.ServiceFabric.Actors.Migration.Exceptions;
     using Microsoft.ServiceFabric.Actors.Runtime;
     using Microsoft.ServiceFabric.Data.Collections;
