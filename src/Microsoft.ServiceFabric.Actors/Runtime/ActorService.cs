@@ -64,14 +64,34 @@ namespace Microsoft.ServiceFabric.Actors.Runtime
             : this(
                 context,
                 actorTypeInfo,
-                MigrationReflectionHelper.GetMigrationOrchestrator(
-                    stateProvider ?? ActorStateProviderHelper.CreateDefaultStateProvider(actorTypeInfo),
-                    actorTypeInfo,
-                    context),
+                migrationSettings: null,
                 actorFactory,
                 stateManagerFactory,
-                stateProvider ?? ActorStateProviderHelper.CreateDefaultStateProvider(actorTypeInfo),
+                stateProvider,
                 settings)
+        {
+        }
+
+        internal ActorService(
+           StatefulServiceContext context,
+           ActorTypeInformation actorTypeInfo,
+           MigrationSettings migrationSettings,
+           Func<ActorService, ActorId, ActorBase> actorFactory = null,
+           Func<ActorBase, IActorStateProvider, IActorStateManager> stateManagerFactory = null,
+           IActorStateProvider stateProvider = null,
+           ActorServiceSettings settings = null)
+           : this(
+               context,
+               actorTypeInfo,
+               MigrationReflectionHelper.GetMigrationOrchestrator(
+                   stateProvider ?? ActorStateProviderHelper.CreateDefaultStateProvider(actorTypeInfo),
+                   actorTypeInfo,
+                   context,
+                   migrationSettings),
+               actorFactory,
+               stateManagerFactory,
+               stateProvider ?? ActorStateProviderHelper.CreateDefaultStateProvider(actorTypeInfo),
+               settings)
         {
         }
 

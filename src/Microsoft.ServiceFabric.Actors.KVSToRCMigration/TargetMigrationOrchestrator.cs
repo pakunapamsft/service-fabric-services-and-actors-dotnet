@@ -41,8 +41,9 @@ namespace Microsoft.ServiceFabric.Actors.KVSToRCMigration
         /// <param name="stateProvider">KVS actor state provider.</param>
         /// <param name="actorTypeInfo">The type information of the Actor.</param>
         /// <param name="serviceContext">Service context the actor service is operating under.</param>
-        public TargetMigrationOrchestrator(IActorStateProvider stateProvider, ActorTypeInformation actorTypeInfo, StatefulServiceContext serviceContext)
-            : base(serviceContext, actorTypeInfo)
+        /// <param name="migrationSettings">Migration settings.</param>
+        public TargetMigrationOrchestrator(IActorStateProvider stateProvider, ActorTypeInformation actorTypeInfo, StatefulServiceContext serviceContext, Actors.Runtime.Migration.MigrationSettings migrationSettings)
+            : base(serviceContext, actorTypeInfo, migrationSettings)
         {
             if (stateProvider.GetType() != typeof(ReliableCollectionsActorStateProvider))
             {
