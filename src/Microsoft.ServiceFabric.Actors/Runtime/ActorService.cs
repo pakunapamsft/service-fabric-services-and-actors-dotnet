@@ -440,8 +440,10 @@ namespace Microsoft.ServiceFabric.Actors.Runtime
                     throw ex;
                 }
             }
-
-            await this.ActorManager.StartLoadingRemindersAsync(cancellationToken);
+            else
+            {
+                await this.ActorManager.StartLoadingRemindersAsync(cancellationToken);
+            }
         }
 
         /// <summary>

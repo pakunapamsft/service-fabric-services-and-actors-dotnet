@@ -92,7 +92,7 @@ namespace Microsoft.ServiceFabric.Actors.KVSToRCMigration
         /// <inheritdoc/>
         public async override Task StartMigrationAsync(CancellationToken cancellationToken)
         {
-            if (Interlocked.CompareExchange(ref isMigrationWorkflowRunning, 0, 1) != 0)
+            if (Interlocked.CompareExchange(ref isMigrationWorkflowRunning, 1, 0) != 0)
             {
                 ActorTrace.Source.WriteWarningWithId(
                     TraceType,
@@ -106,6 +106,7 @@ namespace Microsoft.ServiceFabric.Actors.KVSToRCMigration
             var childToken = this.childCancellationTokenSource.Token;
 
             await this.ThrowIfInvalidConfigForMigrationAsync(childToken);
+            this.metadataDict = await this.migrationActorStateProvider.GetMetadataDictionaryAsync();
             await this.InitializeIfRequiredAsync(childToken);
             this.currentMigrationState = await this.GetCurrentMigrationStateAsync(childToken);
             if (this.currentMigrationState == MigrationState.Completed || this.currentMigrationState == MigrationState.Aborted)
@@ -125,13 +126,14 @@ namespace Microsoft.ServiceFabric.Actors.KVSToRCMigration
                 return;
             }
 
-            this.migrationWorkflowTask = this.StartOrResumeMigrationAsync(childToken);
+            this.migrationWorkflowTask = Task.Run(() => this.StartOrResumeMigrationAsync(childToken), CancellationToken.None);
 
             return;
         }
 
         public override async Task<bool> TryResumeMigrationAsync(CancellationToken cancellationToken)
         {
+            this.metadataDict = await this.migrationActorStateProvider.GetMetadataDictionaryAsync();
             var currentState = await this.GetCurrentMigrationStateAsync(cancellationToken);
             if (currentState == MigrationState.InProgress)
             {
@@ -154,7 +156,7 @@ namespace Microsoft.ServiceFabric.Actors.KVSToRCMigration
                 this.childCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 var childToken = this.childCancellationTokenSource.Token;
 
-                this.migrationWorkflowTask = this.StartOrResumeMigrationAsync(childToken);
+                this.migrationWorkflowTask = Task.Run(() => this.StartOrResumeMigrationAsync(childToken), CancellationToken.None);
 
                 return true;
             }
@@ -282,6 +284,7 @@ namespace Microsoft.ServiceFabric.Actors.KVSToRCMigration
                     this.TraceId);
                 if (status == MigrationState.None)
                 {
+                    await tx.CommitAsync();
                     return new MigrationResult
                     {
                         CurrentPhase = MigrationPhase.None,
@@ -306,12 +309,12 @@ namespace Microsoft.ServiceFabric.Actors.KVSToRCMigration
                     this.TraceId);
 
                 result.StartDateTimeUTC = (await ParseDateTimeAsync(
-                    () => this.MetaDataDictionary.GetAsync(
+                    () => this.MetaDataDictionary.GetValueOrDefaultAsync(
                     tx,
                     MigrationStartDateTimeUTC,
                     DefaultRCTimeout,
                     cancellationToken),
-                    this.TraceId)).Value;
+                    this.TraceId));
 
                 result.EndDateTimeUTC = await ParseDateTimeAsync(
                     () => this.MetaDataDictionary.GetValueOrDefaultAsync(
@@ -322,12 +325,12 @@ namespace Microsoft.ServiceFabric.Actors.KVSToRCMigration
                     this.TraceId);
 
                 result.StartSeqNum = (await ParseLongAsync(
-                    () => this.MetaDataDictionary.GetAsync(
+                    () => this.MetaDataDictionary.GetValueOrDefaultAsync(
                     tx,
                     MigrationStartSeqNum,
                     DefaultRCTimeout,
                     cancellationToken),
-                    this.TraceId)).Value;
+                    this.TraceId));
 
                 result.LastAppliedSeqNum = await ParseLongAsync(
                     () => this.MetaDataDictionary.GetValueOrDefaultAsync(
@@ -352,10 +355,10 @@ namespace Microsoft.ServiceFabric.Actors.KVSToRCMigration
                     var currentIteration = await ParseIntAsync(
                     () => this.MetaDataDictionary.GetValueOrDefaultAsync(
                         tx,
-                        Key(PhaseIterationCount, MigrationPhase.Catchup),
+                        Key(PhaseIterationCount, currentPhase),
                         DefaultRCTimeout,
                         cancellationToken),
-                    1,
+                    0,
                     this.TraceId);
                     for (int i = 1; i <= currentIteration; i++)
                     {
@@ -494,6 +497,14 @@ namespace Microsoft.ServiceFabric.Actors.KVSToRCMigration
                     MigrationCurrentStatus,
                     MigrationState.Completed.ToString(),
                     (_, __) => MigrationState.Completed.ToString(),
+                    DefaultRCTimeout,
+                    cancellationToken);
+
+                await this.metadataDict.AddOrUpdateAsync(
+                    tx,
+                    MigrationCurrentPhase,
+                    MigrationPhase.Completed.ToString(),
+                    (_, __) => MigrationPhase.Completed.ToString(),
                     DefaultRCTimeout,
                     cancellationToken);
 
@@ -659,7 +670,6 @@ namespace Microsoft.ServiceFabric.Actors.KVSToRCMigration
                 this.TraceId,
                 $"Initializing Migration.");
 
-            this.metadataDict = await this.migrationActorStateProvider.GetMetadataDictionaryAsync();
             using (var tx = this.Transaction)
             {
                 await this.MetaDataDictionary.TryAddAsync(
